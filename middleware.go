@@ -20,11 +20,11 @@ import (
 	"net/http"
 )
 
-type KeyValues interface {
+type KeyValues = interface {
 	ByName(name string) string
 }
 
-type Handler func(writer http.ResponseWriter, request *http.Request, params KeyValues) error
+type Handler = func(writer http.ResponseWriter, request *http.Request, params KeyValues) error
 
 func WithTransaction(db *sql.DB) func(Handler) Handler {
 	return func(next Handler) Handler {
