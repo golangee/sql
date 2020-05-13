@@ -34,7 +34,7 @@ package sms
 
 import (
 	"context"
-	"github.com/worldiety/mercurius/ee4g/uuid"
+	"github.com/golangee/uuid"
 	"time"
 )
 
@@ -72,7 +72,7 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	sql2 "github.com/golangee/sql"
-	"github.com/worldiety/mercurius/ee4g/uuid"
+	"github.com/golangee/uuid"
 	"github.com/myproject/mymodule/service/sms"
 	"net/http"
 	"time"
