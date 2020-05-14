@@ -37,6 +37,19 @@ const (
 	Single sqlResultType = 2
 )
 
+// MustMakeSQLRepositories tries to autodetect and implement all interfaces marked with @ee.stereotype.Repository.
+func MustMakeSQLRepositories(dbtx DBTX) []interface{} {
+	dialect, err := DetectDialect(dbtx)
+	if err != nil {
+		panic(err)
+	}
+	repos, err := MakeSQLRepositories(dialect)
+	if err != nil {
+		panic(err)
+	}
+	return repos
+}
+
 // MakeSQLRepositories scans for @ee.stereotype.Repository annotated interfaces and tries to create a proxy instance for each.
 func MakeSQLRepositories(dialect Dialect) ([]interface{}, error) {
 	var res []interface{}
@@ -67,7 +80,7 @@ func NewRepository(dialect Dialect, iface reflectplus.Interface) (*Repository, e
 		methods: make(map[string]reflectplus.InvocationHandler),
 	}
 	for _, method := range iface.Methods {
-		annotations := method.FindAnnotations(AnnotationQuery)
+		annotations := filterByDialect(dialect, method.GetAnnotations().FindAll(AnnotationQuery))
 		if len(annotations) != 1 {
 			return nil, reflectplus.PositionalError(method, fmt.Errorf("each method must have exactly one '%s' annotation", AnnotationQuery))
 		}
@@ -271,7 +284,7 @@ func structFieldPointersToSlice(selectedNames []string, u interface{}) ([]interf
 			}
 		}
 		if !found {
-			return nil, fmt.Errorf("type '%s' has not a field named '%s'. Available columns are (%s). Either change your query or use a struct tag like `%s:\"%s\"`", typ.Name(), colName, strings.Join(selectedNames, ","),AnnotationName, colName)
+			return nil, fmt.Errorf("type '%s' has not a field named '%s'. Available columns are (%s). Either change your query or use a struct tag like `%s:\"%s\"`", typ.Name(), colName, strings.Join(selectedNames, ","), AnnotationName, colName)
 		}
 	}
 
@@ -320,4 +333,29 @@ func validateResultType(method reflectplus.Method) (sqlResultType, error) {
 
 func (r *Repository) HandleQuery(method string, args ...interface{}) []interface{} {
 	return r.methods[method](method, args...)
+}
+
+// filterByDialect removes any annotation which does not match the given dialect.
+// It only removes generic ee.sql.Query if another with that dialect was found.
+func filterByDialect(dialect Dialect, annotations []reflectplus.Annotation) []reflectplus.Annotation {
+	var lastQuery reflectplus.Annotation
+	var res []reflectplus.Annotation
+	for _, a := range annotations {
+		if a.Name == AnnotationQuery {
+			if lastQuery.Name == "" && (a.AsString(DialectValue) == "" || dialect.Matches(a.AsString(DialectValue))) {
+				lastQuery = a
+			}
+			if dialect.Matches(a.AsString(DialectValue)) {
+				lastQuery = a
+			}
+		} else {
+			if a.AsString(DialectValue) == "" || dialect.Matches(a.AsString(DialectValue)) {
+				res = append(res, a)
+			}
+		}
+	}
+	if lastQuery.Name != "" {
+		res = append(res, lastQuery)
+	}
+	return res
 }

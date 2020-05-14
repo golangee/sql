@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type Dialect int
@@ -28,30 +29,67 @@ const (
 	// MySQL examples
 	//  WHERE col = ?
 	//  VALUES(?, ?, ?)
-	MySQL Dialect = 0
+	MySQL Dialect = 1
 
 	// PostgreSQL examples
 	//  WHERE col = $1
 	//  VALUES($1, $2, $3)
-	PostgreSQL Dialect = 1
+	PostgreSQL Dialect = 2
 
 	// Oracle examples
 	//  WHERE col = :1
 	//  VALUES(:1, :2, :3)
-	Oracle Dialect = 2
+	Oracle Dialect = 3
 )
 
 func (d Dialect) String() string {
 	switch d {
 	case MySQL:
-		return "MySQL"
+		return "mysql"
 	case PostgreSQL:
-		return "PostgreSQL"
+		return "postgres"
 	case Oracle:
-		return "Oracle"
+		return "oracle"
 	default:
 		return strconv.Itoa(int(d))
 	}
+}
+
+func (d Dialect) Matches(name string) bool {
+	n := strings.ToLower(name)
+	return n == d.String()
+}
+
+// DetectDialect tries to auto detect the dialect from the given database connection
+func DetectDialect(tx DBTX) (Dialect, error) {
+	rows, err := tx.QueryContext(context.Background(), "SELECT version()")
+	if err != nil {
+		return -1, err
+	}
+
+	defer rows.Close()
+	// e.g. PostgreSQL 12.2 on x86_64-apple-darwin19.4.0, compiled by Apple clang version 11.0.3 (clang-1103.0.32.59), 64-bit
+	// e.g. 10.4.11-MariaDB
+	var str string
+	for rows.Next() {
+		if err := rows.Scan(&str); err != nil {
+			return -1, err
+		}
+	}
+	str = strings.ToLower(str)
+	if strings.Contains(str, "postgresql") {
+		return PostgreSQL, nil
+	}
+
+	if strings.Contains(str, "mariadb") {
+		return MySQL, nil
+	}
+
+	if strings.Contains(str, "mysql") {
+		return MySQL, nil
+	}
+
+	return -1, fmt.Errorf("unknown database type: %s", str)
 }
 
 var regexParamNames = regexp.MustCompile(":\\w+")

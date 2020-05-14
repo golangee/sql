@@ -25,12 +25,10 @@ const (
 	dbCtx sqlCtxKey = "db"
 )
 
-// WithContext creates a new context containing the database transaction, which is usually request-scoped value
-// crossing at least different repositories, or even controllers for a specific use case (domain driven design).
-// Considering https://tip.golang.org/pkg/context/ and balancing the need of creating all repositories, controllers
-// and use cases for each request, just to satisfy an orthogonal constraints, seems not worth it. Neither from
-// the complexity nor from the performance aspects. At the end, sql repositories expect their database or transaction
-// instances in the context.
+// WithContext creates a new context containing the given DBTX. Use this to implement orthogonal requirements
+// like a scoped transaction. To learn more about when and how to use context, take a look at
+// https://tip.golang.org/pkg/context/. It is a performance decision to reuse a repository, instead of creating
+// the entire dependency chain for each request.
 func WithContext(ctx context.Context, db DBTX) context.Context {
 	return context.WithValue(ctx, dbCtx, db)
 }
