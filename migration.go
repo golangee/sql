@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/golangee/reflectplus"
+	"github.com/golangee/reflectplus/parser"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,7 +70,7 @@ func Migrate(dialect Dialect, dbtx DBTX) error {
 			}
 
 			for idx, schema := range migrations {
-				stmt := strings.TrimSpace(schema.Value())
+				stmt := parser.CanonizeString(schema.Value())
 				if stmt == "" {
 					return reflectplus.PositionalError(schema, fmt.Errorf("value of '%s' contains the sql statement and must not be empty", AnnotationSchema))
 				}
