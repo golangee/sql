@@ -36,13 +36,13 @@ const (
 )
 
 type Opts = struct {
-	Driver       string
-	Host         string
-	Port         int
-	User         string
-	Password     string
-	DatabaseName string
-	SSLMode      SSLMode
+	Driver       string  `yaml:"driver"`
+	Host         string  `yaml:"host"`
+	Port         int     `yaml:"port"`
+	User         string  `yaml:"user"`
+	Password     string  `yaml:"password"`
+	DatabaseName string  `yaml:"databaseName"`
+	SSLMode      SSLMode `yaml:"sslMode"`
 }
 
 // MustOpen bails out, if it cannot connect
