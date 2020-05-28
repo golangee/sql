@@ -55,7 +55,7 @@ func MakeSQLRepositories(dialect Dialect) ([]interface{}, error) {
 	var res []interface{}
 	for _, iface := range reflectplus.Interfaces() {
 		if reflectplus.Annotations(iface.Annotations).Has(AnnotationRepository) {
-			repo, err := NewRepository(dialect, iface)
+			repo, err := newRepository(dialect, iface)
 			if err != nil {
 				return nil, err
 			}
@@ -69,13 +69,41 @@ func MakeSQLRepositories(dialect Dialect) ([]interface{}, error) {
 	return res, nil
 }
 
+// NewRepository tries to instantiate the given interface, so it must be a pointer to a concrete (nil) interface.
+// Example:
+//   var repo MyRepo
+//   err := sql.NewRepository(sql.ParseDialect("mysql"), &repo)
+func NewRepository(dialect Dialect, dst interface{}) error {
+	typ := reflect.TypeOf(dst).Elem()
+	any := reflectplus.FindByType(typ)
+	if any == nil {
+		return fmt.Errorf("not a reflectplus type: %v", typ)
+	}
+
+	if iface, ok := any.(*reflectplus.Interface); ok {
+		repo, err := newRepository(dialect, *iface)
+		if err != nil {
+			return err
+		}
+		proxy, err := reflectplus.NewProxy(iface.ImportPath, iface.Name, repo.HandleQuery)
+		if err != nil {
+			return err
+		}
+		reflect.ValueOf(dst).Elem().Set(reflect.ValueOf(proxy))
+	} else {
+		return fmt.Errorf("type is not an interface: %v", typ)
+	}
+
+	return nil
+}
+
 type Repository struct {
 	methods map[string]reflectplus.InvocationHandler
 }
 
-// NewRepository interprets the given interface as an @ee.stereotype.Repository and tries to create a generic Repository
+// newRepository interprets the given interface as an @ee.stereotype.Repository and tries to create a generic Repository
 // with a reflectplus-based handler for it.
-func NewRepository(dialect Dialect, iface reflectplus.Interface) (*Repository, error) {
+func newRepository(dialect Dialect, iface reflectplus.Interface) (*Repository, error) {
 	r := &Repository{
 		methods: make(map[string]reflectplus.InvocationHandler),
 	}

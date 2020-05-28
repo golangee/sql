@@ -35,7 +35,7 @@ const (
 
 )
 
-type Opts = struct {
+type Opts struct {
 	Driver       string  `yaml:"driver"`
 	Host         string  `yaml:"host"`
 	Port         int     `yaml:"port"`
@@ -43,6 +43,11 @@ type Opts = struct {
 	Password     string  `yaml:"password"`
 	DatabaseName string  `yaml:"databaseName"`
 	SSLMode      SSLMode `yaml:"sslMode"`
+}
+
+// Dialect tries to detect the dialect from the driver name
+func (o Opts) Dialect() Dialect {
+	return ParseDialect(o.Driver)
 }
 
 // MustOpen bails out, if it cannot connect

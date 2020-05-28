@@ -42,6 +42,22 @@ const (
 	Oracle Dialect = 3
 )
 
+// ParseDialect guestimates the dialect from the given string or returns 0
+func ParseDialect(str string) Dialect {
+	switch strings.ToLower(str) {
+	case "mysql":
+		return MySQL
+	case "postgres":
+		fallthrough
+	case "postgresql":
+		return PostgreSQL
+	case "oracle":
+		return Oracle
+	}
+
+	return 0
+}
+
 func (d Dialect) String() string {
 	switch d {
 	case MySQL:
