@@ -105,3 +105,30 @@ func Check(f func() error, err *error) {
 		*err = newErr
 	}
 }
+
+type StrWriter struct {
+	Writer io.Writer
+	Err    error
+}
+
+func (w StrWriter) Print(str string) {
+	if w.Err != nil {
+		return
+	}
+
+	_, err := w.Writer.Write([]byte(str))
+	if err != nil {
+		w.Err = err
+	}
+}
+
+func (w StrWriter) Printf(format string, args ...interface{}) {
+	if w.Err != nil {
+		return
+	}
+
+	_, err := w.Writer.Write([]byte(fmt.Sprintf(format, args...)))
+	if err != nil {
+		w.Err = err
+	}
+}

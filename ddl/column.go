@@ -59,7 +59,7 @@ func (c *Column) AsMySQL(w io.Writer) (err error) {
 	return
 }
 
-func (c *Column) AsGraphViz(w io.Writer) error {
+func (c *Column) AsPlantUML(w io.Writer) error {
 	panic("implement me")
 }
 

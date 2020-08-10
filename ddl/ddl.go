@@ -7,7 +7,7 @@ import (
 
 type Generator interface {
 	AsMySQL(w io.Writer) error
-	AsGraphViz(w io.Writer) error
+	AsPlantUML(w io.Writer) error
 }
 
 func ToString(f func(w io.Writer) error) (string, error) {

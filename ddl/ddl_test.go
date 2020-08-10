@@ -24,7 +24,7 @@ func TestChange(t *testing.T) {
 
 	fmt.Println(s)
 
-	s, err = ToString(table.AsGraphViz)
+	s, err = ToString(table.AsPlantUML)
 	if err != nil {
 		t.Fatal(err)
 	}

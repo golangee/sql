@@ -3,7 +3,9 @@ package ddl
 import (
 	"fmt"
 	"github.com/golangee/reflectplus/src"
+	"github.com/golangee/sql/plantuml"
 	"io"
+	"strings"
 )
 
 type Table struct {
@@ -60,7 +62,9 @@ func (s *Table) AsGoMySQLCRUDRepository() *src.TypeBuilder {
 		t.AddMethods(
 			src.NewFunc("FindById").
 				SetDoc("...returns the entry identified by its unique primary key.").
-				AddResults(src.NewParameter("", src.NewTypeDecl("error"))),
+				AddResults(
+					src.NewParameter("", src.NewTypeDecl(src.Qualifier(ddlNameToGoName(s.name)))), //TODO full qualified path?
+					src.NewParameter("", src.NewTypeDecl("error"))),
 			src.NewFunc("DeleteById").
 				SetDoc("...removes the entry identified by its unique primary key.").
 				AddResults(src.NewParameter("", src.NewTypeDecl("error"))),
@@ -123,16 +127,67 @@ func (s *Table) hasColumn(name string) bool {
 	return false
 }
 
-func (s *Table) AsGraphViz(w io.Writer) (err error) {
-	CheckPrintf(w, &err, "graph ER {\n")
-	CheckPrintf(w, &err, "node [shape=box];%s;\n", s.name)
+func (s *Table) AsPlantUML(w io.Writer) (err error) {
 
-	for _, column := range s.columns {
-		CheckPrintf(w, &err, "%s -- %s;\n", s.name, column.name)
-	}
-	CheckPrintf(w, &err, "}\n")
+	myStruct := type2Uml(s.AsGoStruct())
 
+	diagram := plantuml.NewDiagram().Add(myStruct, type2Uml(s.AsGoMySQLCRUDRepository()).Uses(myStruct.Name()))
+	CheckPrint(w, &err, plantuml.String(diagram))
 	return
+}
+
+func type2Uml(myType *src.TypeBuilder) *plantuml.Class {
+	res := plantuml.NewClass(myType.Name())
+	if myType.Doc() != "" {
+		res.NoteTop(plantuml.NewNote(myType.Doc()))
+	}
+
+	for _, field := range myType.Fields() {
+		res.AddAttrs(plantuml.Attr{
+			Visibility: plantuml.Public,
+			Abstract:   false,
+			Static:     false,
+			Name:       field.Name(),
+			Type:       decl2str(field.Type()),
+		})
+	}
+
+	for _, method := range myType.Methods() {
+		res.AddAttrs(plantuml.Attr{
+			Visibility: plantuml.Public,
+			Abstract:   false,
+			Static:     false,
+			Name:       method.Name() + "(" + params2str(method.Params()) + ")",
+			Type:       params2str(method.Results()),
+		})
+	}
+
+	return res
+}
+
+func decl2str(d *src.TypeDecl) string {
+	b := &src.BufferedWriter{}
+	d.Emit(b)
+	return b.String()
+}
+
+func params2str(params []*src.Parameter) string {
+	sb := &strings.Builder{}
+	if len(params) > 1 {
+		sb.WriteString("(")
+	}
+	for i, param := range params {
+		b := &src.BufferedWriter{}
+		param.Decl().Emit(b)
+		sb.WriteString(strings.TrimSpace(b.String()))
+		if i < len(params)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	if len(params) > 1 {
+		sb.WriteString(")")
+	}
+	return sb.String()
 }
 
 func (s *Table) PrimaryKey(names ...string) *Table {
