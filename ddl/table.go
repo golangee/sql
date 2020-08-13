@@ -2,8 +2,8 @@ package ddl
 
 import (
 	"fmt"
+	"github.com/golangee/plantuml"
 	"github.com/golangee/reflectplus/src"
-	"github.com/golangee/sql/plantuml"
 	"io"
 	"strings"
 )
@@ -17,6 +17,16 @@ type Table struct {
 
 func NewTable(name string, cols ...*Column) *Table {
 	return &Table{name: name, columns: cols}
+}
+
+func (s *Table) Column(name string) *Column {
+	for _, column := range s.columns {
+		if column.name == name {
+			return column
+		}
+	}
+
+	return nil
 }
 
 func (s *Table) Validate() error {
@@ -43,41 +53,160 @@ func (s *Table) Validate() error {
 	return nil
 }
 
-func (s *Table) AsGoStruct() *src.TypeBuilder {
-	t := src.NewStruct(ddlNameToGoName(s.name)).SetDoc("... is a typed based on the DDL specification of " + s.name + ".\n" + s.doc +
-		"\n@ee.sql.Table(\"" + s.name + "\")")
-	for _, column := range s.columns {
-		t.AddFields(src.NewField(ddlNameToGoName(column.name), typeDeclFromDDLKind(column.kind)).
-			AddTag("db", column.name).
-			SetDoc("...represents the " + column.name + "(" + string(column.kind) + ") from the DDL specification.\n" + column.doc),
-		)
-	}
-	return t
-}
 
+
+func dbCTXInterface() *src.TypeBuilder {
+	return src.NewInterface("DBTX").SetDoc("...is the minimal required database access contract.").
+		AddMethods(
+			src.NewFunc("ExecContext").SetDoc("... executes with context. This is compatible with database/sql.DB or database/sql.Tx.").
+				AddParams(
+					src.NewParameter("ctx", src.NewTypeDecl("context.Context")),
+					src.NewParameter("query", src.NewTypeDecl("string")),
+					src.NewParameter("args", src.NewTypeDecl("interface{}")),
+				).SetVariadic(true).
+				AddResults(
+					src.NewParameter("", src.NewTypeDecl("database/sql.Result")),
+					src.NewParameter("", src.NewTypeDecl("error")),
+				),
+			src.NewFunc("QueryContext").SetDoc("... queries with context. This is compatible with database/sql.DB or database/sql.Tx.").
+				AddParams(
+					src.NewParameter("ctx", src.NewTypeDecl("context.Context")),
+					src.NewParameter("query", src.NewTypeDecl("string")),
+					src.NewParameter("args", src.NewTypeDecl("interface{}")),
+				).SetVariadic(true).
+				AddResults(
+					src.NewParameter("", src.NewPointerDecl(src.NewTypeDecl("database/sql.Rows"))),
+					src.NewParameter("", src.NewTypeDecl("error")),
+				),
+		)
+}
+/*
 func (s *Table) AsGoMySQLCRUDRepository() *src.TypeBuilder {
 	tName := ddlNameToGoName(s.name)
+	structType := src.NewTypeDecl(src.Qualifier(ddlNameToGoName(s.name))) //TODO full qualified path?
+	dbtxIface := src.NewTypeDecl(src.Qualifier(dbCTXInterface().Name()))  //TODO full qualified path?
 	t := src.NewStruct(tName + "MySQLRepository").SetDoc("...is a CRUD repository based on the DDL specification of " + s.name + "\n" + s.doc)
 	if len(s.pk) > 0 {
+		var ids []*src.Parameter
+
+		varPkParameterNames := ""
+		for i, pk := range s.pk {
+			column := s.Column(pk)
+			varName := pk
+			ids = append(ids, src.NewParameter(varName, typeDeclFromDDLKind(column.kind)))
+			varPkParameterNames += varName
+			if i < len(s.pk)-1 {
+				varPkParameterNames += ", "
+			}
+		}
+
 		t.AddMethods(
 			src.NewFunc("FindById").
 				SetDoc("...returns the entry identified by its unique primary key.").
+				AddParams(
+					src.NewParameter("ctx", src.NewTypeDecl("context.Context")),
+					src.NewParameter("db", dbtxIface),
+				).
+				AddParams(ids...).
 				AddResults(
-					src.NewParameter("", src.NewTypeDecl(src.Qualifier(ddlNameToGoName(s.name)))), //TODO full qualified path?
-					src.NewParameter("", src.NewTypeDecl("error"))),
+					src.NewParameter("", structType),
+					src.NewParameter("", src.NewTypeDecl("error"))).
+				AddBody(src.NewBlock().
+					Var("_res", src.NewSliceDecl(structType)).
+					AddLine(`_rows, _err := db.Query("`, s.mysqlFindById(), `", `, varPkParameterNames, ")").
+					Check("_err", "failed to query", "_res").
+					AddLine("defer _rows.Close()").
+					AddLine("for _rows.Next() {").
+					AddLine("_entry := ", structType, "{}").
+					AddLine("_err := _rows.Scan(", s.goPointer2FieldList("_entry"), ")").
+					Check("_err", "failed to scan", "_res").
+					AddLine("}").
+					AddLine("_err = _rows.Err()").
+					Check("_err", "failed to loop rows", "_res").
+					AddLine("return _res, nil"),
+				),
 			src.NewFunc("DeleteById").
 				SetDoc("...removes the entry identified by its unique primary key.").
-				AddResults(src.NewParameter("", src.NewTypeDecl("error"))),
+				AddParams(
+					src.NewParameter("ctx", src.NewTypeDecl("context.Context")),
+					src.NewParameter("db", dbtxIface),
+				).
+				AddParams(ids...).
+				AddResults(src.NewParameter("", src.NewTypeDecl("error"))).
+				AddBody(src.NewBlock().
+					AddLine(`_, e := db.ExecContext("`, s.mysqlDeleteById(), `", `, varPkParameterNames, ")").
+					Check("e", "failed to execute").
+					AddLine("return nil"),
+				),
 			src.NewFunc("UpdateById").
 				SetDoc("...updates an existing entry identified by its unique primary key.").
+				AddParams(src.NewParameter("v", structType)).
 				AddResults(src.NewParameter("", src.NewTypeDecl("error"))),
 			src.NewFunc("Insert").
 				SetDoc("...saves a new entry, identified by its unique primary key.").
+				AddParams(src.NewParameter("v", structType)).
 				AddResults(src.NewParameter("", src.NewTypeDecl("error"))),
 		)
 	}
 
 	return t
+}*/
+
+func (s *Table) goPointer2FieldList(varName string) string {
+	var names []string
+	for _, column := range s.columns {
+		names = append(names, "&"+varName+"."+column.name)
+	}
+	return strings.Join(names, ", ")
+}
+
+func (s *Table) mysqlDeleteById() string {
+	sb := &strings.Builder{}
+	sb.WriteString("DELETE FROM `")
+	sb.WriteString(s.name)
+	sb.WriteString("` WHERE ")
+
+	for i, pk := range s.pk {
+		sb.WriteString("`")
+		sb.WriteString(pk)
+		sb.WriteString("`")
+		sb.WriteString(" = ?")
+		if i < len(s.pk)-1 {
+			sb.WriteString(" AND ")
+		}
+	}
+
+	return sb.String()
+}
+
+func (s *Table) mysqlFindById() string {
+	sb := &strings.Builder{}
+	sb.WriteString("SELECT ")
+	for i, column := range s.columns {
+		sb.WriteString("`")
+		sb.WriteString(column.name)
+		sb.WriteString("`")
+		if i < len(s.columns)-1 {
+			sb.WriteString(",")
+		}
+
+		sb.WriteString(" ")
+	}
+	sb.WriteString("FROM `")
+	sb.WriteString(s.name)
+	sb.WriteString("` WHERE ")
+
+	for i, pk := range s.pk {
+		sb.WriteString("`")
+		sb.WriteString(pk)
+		sb.WriteString("`")
+		sb.WriteString(" = ?")
+		if i < len(s.pk)-1 {
+			sb.WriteString(" AND ")
+		}
+	}
+
+	return sb.String()
 }
 
 func (s *Table) AsMySQL(w io.Writer) (err error) {
@@ -89,7 +218,7 @@ func (s *Table) AsMySQL(w io.Writer) (err error) {
 
 	for i, column := range s.columns {
 		CheckPrint(w, &err, " ")
-		if err := column.AsMySQL(w); err != nil {
+		if err := column.mysql(w); err != nil {
 			return fmt.Errorf("invalid column '%s': %w", column.name, err)
 		}
 
@@ -108,7 +237,15 @@ func (s *Table) AsMySQL(w io.Writer) (err error) {
 		}
 		CheckPrint(w, &err, ")\n")
 	}
-	CheckPrint(w, &err, ")")
+	CheckPrint(w, &err, ") ")
+
+	// see https://stackoverflow.com/questions/766809/whats-the-difference-between-utf8-general-ci-and-utf8-unicode-ci/766996#766996
+	// https://www.percona.com/live/e17/sites/default/files/slides/Collations%20in%20MySQL%208.0.pdf
+	//
+	// we enforce correct unicode support for mysql and index/sorting collations. For mysql 8.0 using
+	// accent insensitive/case insensitive Unicode 9 support utf8mb4_0900_ai_ci would be better but not compatible
+	// with mariadb, so we use a fixed older version for reproducibility across different database servers.
+	CheckPrint(w, &err, "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci")
 
 	if s.doc != "" {
 		CheckPrintf(w, &err, " COMMENT '%s'", s.doc)
@@ -127,6 +264,7 @@ func (s *Table) hasColumn(name string) bool {
 	return false
 }
 
+/*
 func (s *Table) AsPlantUML(w io.Writer) (err error) {
 
 	myStruct := type2Uml(s.AsGoStruct())
@@ -135,6 +273,7 @@ func (s *Table) AsPlantUML(w io.Writer) (err error) {
 	CheckPrint(w, &err, plantuml.String(diagram))
 	return
 }
+ */
 
 func type2Uml(myType *src.TypeBuilder) *plantuml.Class {
 	res := plantuml.NewClass(myType.Name())
@@ -195,7 +334,7 @@ func (s *Table) PrimaryKey(names ...string) *Table {
 	return s
 }
 
-func (s *Table) Doc(doc string) *Table {
+func (s *Table) Comment(doc string) *Table {
 	s.doc = doc
 	return s
 }

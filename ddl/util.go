@@ -2,26 +2,40 @@ package ddl
 
 import (
 	"fmt"
-	"github.com/golangee/reflectplus/src"
 	"io"
 	"strings"
 	"unicode"
 )
 
-func typeDeclFromDDLKind(kind DataKind) *src.TypeDecl {
-	switch kind {
-	case Int64:
-		return src.NewTypeDecl("int64")
-	case String:
-		return src.NewTypeDecl("string")
-	case Timestamp:
-		return src.NewTypeDecl("time.Time")
-	default:
-		panic("not yet implemented: " + string(kind))
+type strWriter struct {
+	Writer io.Writer
+	Err    error
+}
+
+func (w strWriter) Print(str string) {
+	if w.Err != nil {
+		return
+	}
+
+	_, err := w.Writer.Write([]byte(str))
+	if err != nil {
+		w.Err = err
 	}
 }
 
-func ddlNameToGoName(str string) string {
+func (w strWriter) Printf(format string, args ...interface{}) {
+	if w.Err != nil {
+		return
+	}
+
+	_, err := w.Writer.Write([]byte(fmt.Sprintf(format, args...)))
+	if err != nil {
+		w.Err = err
+	}
+}
+
+// snakeCaseToCamelCase converts strings like "my_snake-case" into "MySnakeCase".
+func snakeCaseToCamelCase(str string) string {
 	sb := &strings.Builder{}
 	nextUp := true
 	for _, r := range str {
