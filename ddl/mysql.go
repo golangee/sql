@@ -6,53 +6,53 @@ import (
 	"strings"
 )
 
-
-
 // mysqlType returns the specific DDL type, e.g. VARCHAR(20)
 func (c *Column) mysqlType() string {
 	switch c.typeName {
-	case "int8":
+	case Int8:
 		fallthrough
-	case "uint8":
+	case Uint8:
 		return "TINYINT"
-	case "int16":
+	case Int16:
 		fallthrough
-	case "uint16":
+	case Uint16:
 		return "SMALLINT"
-	case "int24":
+	case Int24:
 		fallthrough
-	case "uint24":
+	case Uint24:
 		return "MEDIUMINT"
-	case "int32":
+	case Int32:
 		fallthrough
-	case "uint32":
+	case Uint32:
 		return "INT"
-	case "int64":
+	case Int64:
 		fallthrough
-	case "uint64":
+	case Uint64:
 		return "BIGINT"
-	case "float32":
+	case Float32:
 		return "FLOAT"
-	case "float64":
+	case Float64:
 		return "FLOAT64"
-	case "varchar":
+	case Varchar:
 		return "VARCHAR(" + strconv.Itoa(c.len) + ")"
-	case "char":
+	case Char:
 		return "CHAR(" + strconv.Itoa(c.len) + ")"
-	case "text":
+	case Text:
 		return "LONGTEXT"
-	case "blob":
+	case Blob:
 		return "LONGBLOB"
-	case "uuid":
+	case UUID:
 		return "BINARY(16)"
-	case "binary":
+	case Binary:
 		return "BINARY(" + strconv.Itoa(c.len) + ")"
-	case "timestamp":
+	case Timestamp:
 		return "BIGINT"
-	case "duration":
+	case Duration:
 		return "BIGINT"
-	case "enum":
+	case Enum:
 		return "ENUM('" + strings.Join(c.enumValues, "', '") + "')"
+	case Bool:
+		return "BOOLEAN"
 	default:
 		panic("not yet implemented: " + string(c.typeName))
 	}

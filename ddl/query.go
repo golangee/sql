@@ -8,8 +8,10 @@ import (
 type Dialect int
 
 const (
-	DialectUnknown Dialect = iota
-	DialectMySQL
+	SQL Dialect = iota
+	MySQL
+	PostgreSQL
+	Oracle
 )
 
 type TupleType int
@@ -40,6 +42,21 @@ func (b *BoundedContext) AddQueries(queries ...*Query) *BoundedContext {
 	return b
 }
 
+type Repository struct {
+}
+
+func NewRepository(name string) *Repository {
+	return &Repository{}
+}
+
+func (r *Repository) Comment(doc string)*Repository{
+	return r
+}
+
+func (r *Repository) AddQueries(queries...*Query)*Repository{
+return nil
+}
+
 type Query struct {
 	dialect Dialect
 	query   string
@@ -48,49 +65,67 @@ type Query struct {
 	results []*src.TypeDecl
 }
 
-func NewRawQuery(dialect Dialect, name, query string) *Query {
-	return &Query{dialect: dialect, query: query, name: name}
+func NewQuery(name string, queries ...*RawQuery) *Query {
+	return nil
 }
 
-func (q *Query) StructParams(types ...*src.TypeDecl) *Query {
+func ReadOne(tableName string)*Query{
+	return nil
+}
+
+func ReadAll(tableName string)*Query{
+	return nil
+}
+
+func InsertOne(tableName string)*Query{
+return nil
+}
+
+func DeleteOne(tableName string)*Query{
+	return nil
+}
+
+func DeleteAll(tableName string)*Query{
+	return nil
+}
+
+func UpdateOne(tableName string)*Query{
+	return nil
+}
+
+func CountAll(tableName string)*Query{
+	return nil
+}
+
+func (q *Query) Input(name string, kind DataType) *Query {
 	return q
 }
 
-func (q *Query) Params(types ...*src.TypeDecl) *Query {
-	q.params = append(q.params, types...)
-	return q
+func (q *Query) OutputOne(types ...DataType) *Query {
+	return nil
 }
 
-func (q *Query) StructResult(fields ...*src.TypeDecl) *Query {
-	q.results = append(q.results, fields...)
-	return q
+func (q *Query) OutputMany(types ...DataType) *Query {
+	return nil
 }
 
-func (q *Query) StructResults(fields ...*src.TypeDecl) *Query {
-	q.results = append(q.results, fields...)
-	return q
+func (q *Query) Comment(doc string) *Query {
+	return nil
 }
 
-func (q *Query) Results(types *src.TypeDecl) *Query {
-	q.results = append(q.results, types)
-	return q
+type RawQuery struct {
+	dialect Dialect
+	query   string
+	name    string
+	params  []*src.TypeDecl
+	results []*src.TypeDecl
 }
 
-func (q *Query) MapResult(types ...*src.TypeDecl) *Query {
-	q.results = append(q.results, types...)
-	return q
-}
-
-func (q *Query) BindParam(name string) *Query {
-	return q
-}
-
-func (q *Query) toMySQLFunc(availableTypes ...*src.TypeBuilder) *src.FuncBuilder {
-	if len(q.results) == 0 {
-		return q.toMySQLExecute()
-	}
-
-	return q.toMySQLQuery(availableTypes...)
+// NewRawQuery creates a query which is specialized to the given dialect.
+// If a query is cross-sql (e.g. ANSI 99) compatible, one can use the generic
+// sql
+func NewRawQuery(dialect Dialect, query string) *RawQuery {
+	return &RawQuery{dialect: dialect, query: query, name: "name"}
 }
 
 func (q *Query) toMySQLExecute() *src.FuncBuilder {
