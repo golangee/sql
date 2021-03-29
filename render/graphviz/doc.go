@@ -1,4 +1,4 @@
-// Copyright 2020 Torben Schinke
+// Copyright 2021 Torben Schinke
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sql
-
-import (
-	"context"
-	"database/sql"
-)
-
-type DBTX interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-}
+// Package graphviz can render an ERM model.
+package graphviz
