@@ -1,4 +1,4 @@
-// Copyright 2021 Torben Schinke
+// Copyright 2021 The Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package graphviz can render an ERM model.
-package graphviz
+// Package diagram contains a simple dot emitter.
+package diagram
