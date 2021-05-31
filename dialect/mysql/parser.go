@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser
+package mysql
 
 import (
 	"github.com/antlr/antlr4/runtime/Go/antlr"
-	"sql/dialect/mysql/parser/raw"
-	"sql/model"
+	"github.com/golangee/sql/ddl"
+	"github.com/golangee/sql/dialect/mysql/parser"
 	"strings"
 )
 
 // Parse extracts all tables from CREATE TABLE statements from a given set of SQL statements.
-func Parse(sql string) (*ParseResult, error) {
+func Parse(sql string) (*ddl.ParseResult, error) {
 	input := antlr.NewInputStream(sql)
-	lexer := raw.NewMySqlLexer(input)
+	lexer := parser.NewMySqlLexer(input)
 	stream := antlr.NewCommonTokenStream(lexer, 0)
-	parser := raw.NewMySqlParser(stream)
+	parser := parser.NewMySqlParser(stream)
 
 	parser.RemoveErrorListeners()
 	lexer.RemoveErrorListeners()
@@ -42,18 +42,10 @@ func Parse(sql string) (*ParseResult, error) {
 		return nil, errorCollector.errors
 	}
 
-	return &ParseResult{
+	return &ddl.ParseResult{
 		Tables:          listener.Tables,
 		AlterStatements: listener.AlterStatements,
 	}, nil
-}
-
-// ParseResult contains all information that could be parsed from the SQL.
-type ParseResult struct {
-	// Tables are all parsed CREATE TABLE statements.
-	Tables []model.Table
-	// AlterStatements are all parsed ALTER TABLE statements.
-	AlterStatements []model.AlterStatement
 }
 
 // errorCollector collects all errors that occur during parsing.
@@ -76,17 +68,17 @@ func (c *errorCollector) SyntaxError(recognizer antlr.Recognizer, offendingSymbo
 }
 
 type listener struct {
-	*raw.BaseMySqlParserListener
+	*parser.BaseMySqlParserListener
 	// The table that is currently being parsed
-	BuildingTable *model.Table
+	BuildingTable *ddl.Table
 	// The column that is currently being parsed
-	BuildingColumn *model.Column
+	BuildingColumn *ddl.Column
 	// The constraint that is currently parsed
-	BuildingForeignKeyConstraint *model.ForeignKeyConstraint
+	BuildingForeignKeyConstraint *ddl.ForeignKeyConstraint
 	// A list of all parsed CREATE TABLE statements
-	Tables []model.Table
+	Tables []ddl.Table
 	// A list of parsed ALTER TABLE statements
-	AlterStatements []model.AlterStatement
+	AlterStatements []ddl.AlterStatement
 }
 
 func newListener() *listener {
@@ -99,10 +91,10 @@ func trimName(name string) string {
 }
 
 // A new CREATE TABLE statement was detected.
-func (l *listener) EnterColumnCreateTable(ctx *raw.ColumnCreateTableContext) {
+func (l *listener) EnterColumnCreateTable(ctx *parser.ColumnCreateTableContext) {
 	name := ctx.TableName().GetText()
 	name = trimName(name)
-	l.BuildingTable = &model.Table{
+	l.BuildingTable = &ddl.Table{
 		Name:        name,
 		IfNotExists: ctx.IfNotExists() != nil,
 	}
@@ -110,7 +102,7 @@ func (l *listener) EnterColumnCreateTable(ctx *raw.ColumnCreateTableContext) {
 
 // A CREATE TABLE statement is done processing.
 // Append the table to the list of parsed ones.
-func (l *listener) ExitColumnCreateTable(ctx *raw.ColumnCreateTableContext) {
+func (l *listener) ExitColumnCreateTable(ctx *parser.ColumnCreateTableContext) {
 	l.Tables = append(l.Tables, *l.BuildingTable)
 	l.BuildingTable = nil
 }
@@ -118,17 +110,17 @@ func (l *listener) ExitColumnCreateTable(ctx *raw.ColumnCreateTableContext) {
 // --- Column specific callbacks
 
 // A new column declaration is visited.
-func (l *listener) EnterColumnDeclaration(ctx *raw.ColumnDeclarationContext) {
-	l.BuildingColumn = &model.Column{}
+func (l *listener) EnterColumnDeclaration(ctx *parser.ColumnDeclarationContext) {
+	l.BuildingColumn = &ddl.Column{}
 }
 
 // The column declaration is finished, save it.
-func (l *listener) ExitColumnDeclaration(ctx *raw.ColumnDeclarationContext) {
+func (l *listener) ExitColumnDeclaration(ctx *parser.ColumnDeclarationContext) {
 	l.BuildingTable.Columns = append(l.BuildingTable.Columns, *l.BuildingColumn)
 	l.BuildingColumn = nil
 }
 
-func (l *listener) EnterUid(ctx *raw.UidContext) { //nolint
+func (l *listener) EnterUid(ctx *parser.UidContext) { //nolint
 	if l.BuildingColumn != nil {
 		if len(l.BuildingColumn.Name) == 0 {
 			l.BuildingColumn.Name = trimName(ctx.GetText())
@@ -136,7 +128,7 @@ func (l *listener) EnterUid(ctx *raw.UidContext) { //nolint
 	}
 }
 
-func (l *listener) EnterDataType(ctx *raw.DataTypeContext) {
+func (l *listener) EnterDataType(ctx *parser.DataTypeContext) {
 	if l.BuildingColumn != nil {
 		l.BuildingColumn.Type = ctx.GetText()
 	}
@@ -146,25 +138,25 @@ func (l *listener) EnterDataType(ctx *raw.DataTypeContext) {
 
 // An ALTER TABLE statement was detected. Prepare the table name, so that it is available
 // for saving the smaller statements.
-func (l *listener) EnterAlterTable(ctx *raw.AlterTableContext) {
+func (l *listener) EnterAlterTable(ctx *parser.AlterTableContext) {
 	tableName := ctx.TableName().GetText()
 	tableName = trimName(tableName)
-	l.BuildingTable = &model.Table{Name: tableName}
+	l.BuildingTable = &ddl.Table{Name: tableName}
 }
 
 // An ALTER TABLE statement was parsed, reset the table.
-func (l *listener) ExitAlterTable(ctx *raw.AlterTableContext) {
+func (l *listener) ExitAlterTable(ctx *parser.AlterTableContext) {
 	l.BuildingTable = nil
 }
 
 // Prepare a new ADD COLUMN statement.
-func (l *listener) EnterAlterByAddColumn(ctx *raw.AlterByAddColumnContext) {
-	l.BuildingColumn = &model.Column{}
+func (l *listener) EnterAlterByAddColumn(ctx *parser.AlterByAddColumnContext) {
+	l.BuildingColumn = &ddl.Column{}
 }
 
 // We parsed an ADD COLUMN statement. Save it.
-func (l *listener) ExitAlterByAddColumn(ctx *raw.AlterByAddColumnContext) {
-	addStatement := model.AlterAddColumn{
+func (l *listener) ExitAlterByAddColumn(ctx *parser.AlterByAddColumnContext) {
+	addStatement := ddl.AlterAddColumn{
 		Table:  l.BuildingTable.Name,
 		Column: *l.BuildingColumn,
 	}
@@ -184,14 +176,14 @@ func (l *listener) ExitAlterByAddColumn(ctx *raw.AlterByAddColumnContext) {
 }
 
 // We parsed a DROP COLUMN statement. Save it.
-func (l *listener) ExitAlterByDropColumn(ctx *raw.AlterByDropColumnContext) {
-	l.AlterStatements = append(l.AlterStatements, model.AlterDropColumn{
+func (l *listener) ExitAlterByDropColumn(ctx *parser.AlterByDropColumnContext) {
+	l.AlterStatements = append(l.AlterStatements, ddl.AlterDropColumn{
 		Table:  l.BuildingTable.Name,
 		Column: trimName(ctx.Uid().GetText()),
 	})
 }
 
-func (l *listener) EnterCreateIndex(ctx *raw.CreateIndexContext) {
+func (l *listener) EnterCreateIndex(ctx *parser.CreateIndexContext) {
 	indexName := ctx.Uid().GetText()
 	indexName = trimName(indexName)
 	onTableName := ctx.TableName().GetText()
@@ -202,7 +194,7 @@ func (l *listener) EnterCreateIndex(ctx *raw.CreateIndexContext) {
 	columnName := ctx.IndexColumnNames().GetText()
 	columnName = trimName(strings.Trim(columnName, "()"))
 
-	l.AlterStatements = append(l.AlterStatements, model.AlterAddIndex{
+	l.AlterStatements = append(l.AlterStatements, ddl.AlterAddIndex{
 		Table:  onTableName,
 		Name:   indexName,
 		Column: columnName,
@@ -211,24 +203,24 @@ func (l *listener) EnterCreateIndex(ctx *raw.CreateIndexContext) {
 }
 
 // A DROP INDEX 'index' ON 'table' statement was parsed.
-func (l *listener) EnterDropIndex(ctx *raw.DropIndexContext) {
+func (l *listener) EnterDropIndex(ctx *parser.DropIndexContext) {
 	indexName := ctx.Uid().GetText()
 	indexName = trimName(indexName)
 	onTableName := ctx.TableName().GetText()
 	onTableName = trimName(onTableName)
 
-	l.AlterStatements = append(l.AlterStatements, model.AlterDropIndex{
+	l.AlterStatements = append(l.AlterStatements, ddl.AlterDropIndex{
 		Table: onTableName,
 		Index: indexName,
 	})
 }
 
 // A ALTER TABLE 'table' DROP INDEX 'index' statement was parsed.
-func (l *listener) EnterAlterByDropIndex(ctx *raw.AlterByDropIndexContext) {
+func (l *listener) EnterAlterByDropIndex(ctx *parser.AlterByDropIndexContext) {
 	indexName := ctx.Uid().GetText()
 	indexName = trimName(indexName)
 	onTableName := l.BuildingTable.Name
-	l.AlterStatements = append(l.AlterStatements, model.AlterDropIndex{
+	l.AlterStatements = append(l.AlterStatements, ddl.AlterDropIndex{
 		Table: onTableName,
 		Index: indexName,
 	})
@@ -237,8 +229,8 @@ func (l *listener) EnterAlterByDropIndex(ctx *raw.AlterByDropIndexContext) {
 // --- Callbacks for building constraints
 
 // A FOREIGN KEY is visited.
-func (l *listener) EnterForeignKeyTableConstraint(ctx *raw.ForeignKeyTableConstraintContext) {
-	l.BuildingForeignKeyConstraint = &model.ForeignKeyConstraint{}
+func (l *listener) EnterForeignKeyTableConstraint(ctx *parser.ForeignKeyTableConstraintContext) {
+	l.BuildingForeignKeyConstraint = &ddl.ForeignKeyConstraint{}
 
 	if ctx.GetName() != nil {
 		constraintName := trimName(ctx.GetName().GetText())
@@ -253,7 +245,7 @@ func (l *listener) EnterForeignKeyTableConstraint(ctx *raw.ForeignKeyTableConstr
 }
 
 // We can get the names of what a FOREIGN KEY is referencing here.
-func (l *listener) EnterReferenceDefinition(ctx *raw.ReferenceDefinitionContext) {
+func (l *listener) EnterReferenceDefinition(ctx *parser.ReferenceDefinitionContext) {
 	if l.BuildingForeignKeyConstraint != nil {
 		l.BuildingForeignKeyConstraint.ReferenceTable = trimName(ctx.TableName().GetText())
 		// FOREIGN KEYs can be composite. See above on why we ignore that.
@@ -266,28 +258,28 @@ func (l *listener) EnterReferenceDefinition(ctx *raw.ReferenceDefinitionContext)
 }
 
 // NOT NULL constraint.
-func (l *listener) EnterNullColumnConstraint(ctx *raw.NullColumnConstraintContext) {
+func (l *listener) EnterNullColumnConstraint(ctx *parser.NullColumnConstraintContext) {
 	if l.BuildingColumn != nil {
 		l.BuildingColumn.NotNull = true
 	}
 }
 
 // PRIMARY KEY constraint.
-func (l *listener) EnterPrimaryKeyColumnConstraint(ctx *raw.PrimaryKeyColumnConstraintContext) {
+func (l *listener) EnterPrimaryKeyColumnConstraint(ctx *parser.PrimaryKeyColumnConstraintContext) {
 	if l.BuildingColumn != nil {
 		l.BuildingColumn.PrimaryKey = true
 	}
 }
 
 // UNIQUE constraint.
-func (l *listener) EnterUniqueKeyColumnConstraint(ctx *raw.UniqueKeyColumnConstraintContext) {
+func (l *listener) EnterUniqueKeyColumnConstraint(ctx *parser.UniqueKeyColumnConstraintContext) {
 	if l.BuildingColumn != nil {
 		l.BuildingColumn.Unique = true
 	}
 }
 
 // DEFAULT constraint.
-func (l *listener) EnterDefaultColumnConstraint(ctx *raw.DefaultColumnConstraintContext) {
+func (l *listener) EnterDefaultColumnConstraint(ctx *parser.DefaultColumnConstraintContext) {
 	if l.BuildingColumn != nil {
 		defaultValue := ctx.DefaultValue().GetText()
 		l.BuildingColumn.Default = &defaultValue
@@ -295,8 +287,8 @@ func (l *listener) EnterDefaultColumnConstraint(ctx *raw.DefaultColumnConstraint
 }
 
 // A KEY constraint, which represents an index an a column.
-func (l *listener) EnterSimpleIndexDeclaration(ctx *raw.SimpleIndexDeclarationContext) {
-	key := model.Key{}
+func (l *listener) EnterSimpleIndexDeclaration(ctx *parser.SimpleIndexDeclarationContext) {
+	key := ddl.Key{}
 
 	if ctx.Uid() != nil {
 		keyName := ctx.Uid().GetText()

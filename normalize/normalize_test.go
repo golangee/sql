@@ -16,10 +16,10 @@ package normalize_test
 
 import (
 	"fmt"
+	"github.com/golangee/sql/dialect/mysql"
+	"github.com/golangee/sql/internal"
+	"github.com/golangee/sql/normalize"
 	"io/ioutil"
-	"sql/dialect/mysql/parser"
-	"sql/internal"
-	"sql/normalize"
 	"testing"
 )
 
@@ -30,14 +30,14 @@ func TestNormalizeMusic(t *testing.T) {
 	// Assume that we have a correctly working parser.
 	// Parse the tables, normalize them, and parse the normalized SQL again.
 	// Parsing from original input should match the parsing from normalized input.
-	expectedResult, err := parser.Parse(sql)
+	expectedResult, err := mysql.Parse(sql)
 	if err != nil {
 		t.Error(err)
 	}
 
 	normalized := normalize.Tables(expectedResult.Tables)
 
-	actualResult, err := parser.Parse(normalized)
+	actualResult, err := mysql.Parse(normalized)
 	if err != nil {
 		t.Error(err)
 	}
@@ -61,14 +61,14 @@ func TestNormalizeAlter(t *testing.T) {
 	// Assume that we have a correctly working parser.
 	// Parse the tables, normalize them, and parse the normalized SQL again.
 	// Parsing from original input should match the parsing from normalized input.
-	expectedResult, err := parser.Parse(sql)
+	expectedResult, err := mysql.Parse(sql)
 	if err != nil {
 		t.Error(err)
 	}
 
 	normalized := normalize.AlterStatements(expectedResult.AlterStatements)
 
-	actualResult, err := parser.Parse(normalized)
+	actualResult, err := mysql.Parse(normalized)
 	if err != nil {
 		t.Error(err)
 	}

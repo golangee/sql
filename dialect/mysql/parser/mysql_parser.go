@@ -1,6 +1,6 @@
-// Code generated from MySqlParser.g4 by ANTLR 4.7.2. DO NOT EDIT.
+// Code generated from MySqlParser.g4 by ANTLR 4.9.2. DO NOT EDIT.
 
-package raw // MySqlParser
+package parser // MySqlParser
 import (
 	"fmt"
 	"reflect"
@@ -3543,9 +3543,6 @@ var parserATN = []uint16{
 	6245, 6255, 6268, 6274, 6280, 6296, 6302, 6311, 6313, 6332, 6344, 6361,
 	6378, 6380, 6399, 6408, 6417, 6426,
 }
-var deserializer = antlr.NewATNDeserializer(nil)
-var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
-
 var literalNames = []string{
 	"", "", "", "", "", "'ADD'", "'ALL'", "'ALTER'", "'ALWAYS'", "'ANALYZE'",
 	"'AND'", "'AS'", "'ASC'", "'BEFORE'", "'BETWEEN'", "'BOTH'", "'BY'", "'CALL'",
@@ -3993,21 +3990,25 @@ var ruleNames = []string{
 	"transactionLevelBase", "privilegesBase", "intervalTypeBase", "dataTypeBase",
 	"keywordsCanBeId", "functionNameBase",
 }
-var decisionToDFA = make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-
-func init() {
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-}
 
 type MySqlParser struct {
 	*antlr.BaseParser
 }
 
+// NewMySqlParser produces a new parser instance for the optional input antlr.TokenStream.
+//
+// The *MySqlParser instance produced may be reused by calling the SetInputStream method.
+// The initial parser configuration is expensive to construct, and the object is not thread-safe;
+// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
+// objects can be used in a thread-safe manner.
 func NewMySqlParser(input antlr.TokenStream) *MySqlParser {
 	this := new(MySqlParser)
-
+	deserializer := antlr.NewATNDeserializer(nil)
+	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)
+	decisionToDFA := make([]*antlr.DFA, len(deserializedATN.DecisionToState))
+	for index, ds := range deserializedATN.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(ds, index)
+	}
 	this.BaseParser = antlr.NewBaseParser(input)
 
 	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())

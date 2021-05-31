@@ -15,76 +15,87 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"github.com/golangee/sql/ddl"
+	"github.com/golangee/sql/diagram"
+	"github.com/golangee/sql/dialect/mysql"
+	"github.com/golangee/sql/normalize"
 	"io/ioutil"
 	"os"
-	"sql/diagram"
-	"sql/dialect/mysql/parser"
-	"sql/normalize"
 )
 
 const (
-	NumArgs     = 3
 	OpDot       = "dot"
 	OpSvg       = "svg"
 	OpNormalize = "norm"
 )
 
 func main() {
-	if len(os.Args) != NumArgs {
-		fmt.Println("USAGE: converter <sql file> <operation>")
-		fmt.Println("operation: 'svg' to print an svg to stdout")
-		fmt.Println("           'dot' to print the dot representation of the graph")
-		fmt.Println("           'norm' to normalize the SQL")
+	sqlFile := flag.String("sql-file", "", "the sql file to parse")
+	dialect := flag.String("dialect", "mysql", "the sql dialect parser, one of (mysql)")
+	operation := flag.String("op", "", "the operation to perform, one of (svg|dot|norm). 'svg' to print an svg to stdout, 'dot' to print the dot representation of the graph, 'norm' to normalize the SQL.")
 
+	flag.Parse()
+
+	if *sqlFile == "" || *dialect == "" || *operation == "" {
+		fmt.Println("invalid usage")
+		flag.PrintDefaults()
+		os.Exit(-1)
 		return
 	}
+
+	if err := run(*sqlFile, *dialect, *operation); err != nil {
+		panic(err)
+	}
+}
+
+// run actually evaluate and runs the converter command.
+func run(sqlFile, dialect, op string) error {
 
 	// Open and parse file
 	fileContents, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("cannot load sql-file '%s': %w", sqlFile, err)
 	}
 
-	parseResult, err := parser.Parse(string(fileContents))
-	if err != nil {
-		panic(err)
+	var parseResult *ddl.ParseResult
+	switch dialect {
+	case "mysql":
+		parseResult, err = mysql.Parse(string(fileContents))
+		if err != nil {
+			return fmt.Errorf("unable to parse mysql: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported dialect: %s", dialect)
 	}
 
 	// Check for a valid operation.
-	op := os.Args[2]
-	if !isValidOp(op) {
-		fmt.Println("operation must be 'svg', 'dot' or 'norm'")
-
-		return
-	}
-
+	switch op {
 	// Perform desired operation.
-	if op == OpDot {
+	case OpDot:
 		dot := diagram.GenerateDot(parseResult.Tables, diagram.TwoPi)
 		fmt.Println(dot)
-	}
 
-	if op == OpSvg {
+	case OpSvg:
 		dot := diagram.GenerateDot(parseResult.Tables, diagram.TwoPi)
 
 		svg, err := diagram.DotToSvg(dot)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("unable to generate dot-file: %w", err)
 		}
 
 		fmt.Println(svg)
-	}
 
-	if op == OpNormalize {
+	case OpNormalize:
 		normed := normalize.Tables(parseResult.Tables)
 		fmt.Print(normed)
 		normed = normalize.AlterStatements(parseResult.AlterStatements)
 		fmt.Print(normed)
 		fmt.Println()
+	default:
+		return fmt.Errorf("invalid operation: %s", op)
 	}
-}
 
-func isValidOp(op string) bool {
-	return op == OpDot || op == OpSvg || op == OpNormalize
+	return nil
 }

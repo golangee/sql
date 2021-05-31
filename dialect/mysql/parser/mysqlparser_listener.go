@@ -1,6 +1,6 @@
-// Code generated from MySqlParser.g4 by ANTLR 4.7.2. DO NOT EDIT.
+// Code generated from MySqlParser.g4 by ANTLR 4.9.2. DO NOT EDIT.
 
-package raw // MySqlParser
+package parser // MySqlParser
 import "github.com/antlr/antlr4/runtime/Go/antlr"
 
 // MySqlParserListener is a complete listener for a parse tree produced by MySqlParser.

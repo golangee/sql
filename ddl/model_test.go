@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model_test
+package ddl_test
 
 import (
-	"sql/model"
+	"github.com/golangee/sql/ddl"
 	"testing"
 )
 
 func TestAlterAddColumn_Apply(t *testing.T) {
-	table := model.Table{
+	table := ddl.Table{
 		Name:    "TestTable",
-		Columns: []model.Column{},
+		Columns: []ddl.Column{},
 	}
 
-	alter := model.AlterAddColumn{
-		Column: model.Column{Name: "A"},
+	alter := ddl.AlterAddColumn{
+		Column: ddl.Column{Name: "A"},
 	}
 	if err := alter.ApplyTo(&table); err != nil {
 		t.Error(err)
@@ -36,8 +36,8 @@ func TestAlterAddColumn_Apply(t *testing.T) {
 		t.Fatalf("Failed to add column to empty table")
 	}
 
-	alter = model.AlterAddColumn{
-		Column: model.Column{Name: "B"},
+	alter = ddl.AlterAddColumn{
+		Column: ddl.Column{Name: "B"},
 		First:  true,
 	}
 	if err := alter.ApplyTo(&table); err != nil {
@@ -49,8 +49,8 @@ func TestAlterAddColumn_Apply(t *testing.T) {
 	}
 
 	b := "B"
-	alter = model.AlterAddColumn{
-		Column: model.Column{Name: "C"},
+	alter = ddl.AlterAddColumn{
+		Column: ddl.Column{Name: "C"},
 		After:  &b,
 	}
 
@@ -64,8 +64,8 @@ func TestAlterAddColumn_Apply(t *testing.T) {
 }
 
 func TestAlterAddIndex_Apply(t *testing.T) {
-	table := model.Table{}
-	if err := (model.AlterAddIndex{Column: "A"}.ApplyTo(&table)); err != nil {
+	table := ddl.Table{}
+	if err := (ddl.AlterAddIndex{Column: "A"}.ApplyTo(&table)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,8 +75,8 @@ func TestAlterAddIndex_Apply(t *testing.T) {
 }
 
 func TestAlterDropColumn_Apply(t *testing.T) {
-	table := model.Table{
-		Columns: []model.Column{
+	table := ddl.Table{
+		Columns: []ddl.Column{
 			{Name: "A"},
 			{Name: "B"},
 			{Name: "C"},
@@ -84,15 +84,15 @@ func TestAlterDropColumn_Apply(t *testing.T) {
 			{Name: "E"},
 		},
 	}
-	if err := (model.AlterDropColumn{Column: "A"}.ApplyTo(&table)); err != nil {
+	if err := (ddl.AlterDropColumn{Column: "A"}.ApplyTo(&table)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := (model.AlterDropColumn{Column: "C"}.ApplyTo(&table)); err != nil {
+	if err := (ddl.AlterDropColumn{Column: "C"}.ApplyTo(&table)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := (model.AlterDropColumn{Column: "E"}.ApplyTo(&table)); err != nil {
+	if err := (ddl.AlterDropColumn{Column: "E"}.ApplyTo(&table)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -103,13 +103,13 @@ func TestAlterDropColumn_Apply(t *testing.T) {
 
 func TestAlterDropIndex_Apply(t *testing.T) {
 	indexName := "idx"
-	table := model.Table{
-		Keys: []model.Key{
+	table := ddl.Table{
+		Keys: []ddl.Key{
 			{OnColumn: "A", Name: &indexName},
 		},
 	}
 
-	if err := (model.AlterDropIndex{Index: indexName}.ApplyTo(&table)); err != nil {
+	if err := (ddl.AlterDropIndex{Index: indexName}.ApplyTo(&table)); err != nil {
 		t.Fatal(err)
 	}
 

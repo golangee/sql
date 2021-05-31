@@ -16,9 +16,9 @@ package diagram
 
 import (
 	"fmt"
+	"github.com/golangee/sql/ddl"
 	"math/rand"
 	"os/exec"
-	"sql/model"
 	"strconv"
 	"strings"
 
@@ -37,7 +37,7 @@ const (
 
 // GenerateDot creates a graphviz representation of the relationships
 // between the given tables.
-func GenerateDot(tables []model.Table, layout LayoutAlgorithm) string {
+func GenerateDot(tables []ddl.Table, layout LayoutAlgorithm) string {
 	g := dot.NewGraph(dot.Undirected)
 	g.Attr("layout", layout)
 	g.Attr("overlap", "false") // can be "false", "scale", "true"

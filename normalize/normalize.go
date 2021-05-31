@@ -16,11 +16,11 @@ package normalize
 
 import (
 	"fmt"
+	"github.com/golangee/sql/ddl"
 	"sort"
-	"sql/model"
 )
 
-func Tables(tables []model.Table) string {
+func Tables(tables []ddl.Table) string {
 	// Sort tables by name
 	sort.Slice(tables, func(i, j int) bool {
 		return tables[i].Name < tables[j].Name
@@ -35,7 +35,7 @@ func Tables(tables []model.Table) string {
 	return result
 }
 
-func Table(table model.Table) string {
+func Table(table ddl.Table) string {
 	result := "CREATE TABLE"
 	if table.IfNotExists {
 		result += " IF NOT EXISTS"
@@ -55,7 +55,7 @@ func Table(table model.Table) string {
 	return result
 }
 
-func Columns(columns []model.Column) string {
+func Columns(columns []ddl.Column) string {
 	// Sort columns by name
 	sort.Slice(columns, func(i, j int) bool {
 		return columns[i].Name < columns[j].Name
@@ -74,7 +74,7 @@ func Columns(columns []model.Column) string {
 	return result
 }
 
-func Column(column model.Column) string {
+func Column(column ddl.Column) string {
 	result := fmt.Sprintf("`%s` %s", column.Name, column.Type)
 
 	// Append constraints alphabetically
@@ -98,7 +98,7 @@ func Column(column model.Column) string {
 	return result
 }
 
-func ForeignKeys(keys []model.ForeignKeyConstraint) string {
+func ForeignKeys(keys []ddl.ForeignKeyConstraint) string {
 	// Sort keys by constraint name then by the column they apply to.
 	// This is achieved by building a string for comparison that has the format 'constraint.column'
 	sort.Slice(keys, func(i, j int) bool {
@@ -121,7 +121,7 @@ func ForeignKeys(keys []model.ForeignKeyConstraint) string {
 	return result
 }
 
-func ForeignKey(key model.ForeignKeyConstraint) string {
+func ForeignKey(key ddl.ForeignKeyConstraint) string {
 	result := ""
 	if key.Name != nil {
 		result += fmt.Sprintf("CONSTRAINT %s ", *key.Name)
@@ -132,7 +132,7 @@ func ForeignKey(key model.ForeignKeyConstraint) string {
 	return result
 }
 
-func Keys(keys []model.Key) string {
+func Keys(keys []ddl.Key) string {
 	// Sort keys by constraint name then by the column they apply to.
 	// This is achieved by building a string for comparison that has the format 'constraint.column'
 	sort.Slice(keys, func(i, j int) bool {
@@ -155,7 +155,7 @@ func Keys(keys []model.Key) string {
 	return result
 }
 
-func Key(key model.Key) string {
+func Key(key ddl.Key) string {
 	result := "KEY"
 	if key.Name != nil {
 		result += fmt.Sprintf(" `%s`", *key.Name)
@@ -166,7 +166,7 @@ func Key(key model.Key) string {
 	return result
 }
 
-func AlterStatements(alterStatements []model.AlterStatement) string {
+func AlterStatements(alterStatements []ddl.AlterStatement) string {
 	// No sorting or anything is allowed here, as that would change the meaning!
 	result := ""
 
@@ -177,22 +177,22 @@ func AlterStatements(alterStatements []model.AlterStatement) string {
 	return result
 }
 
-func AlterTableStatement(alterStatement model.AlterStatement) string {
+func AlterTableStatement(alterStatement ddl.AlterStatement) string {
 	switch stmt := alterStatement.(type) {
-	case model.AlterAddColumn:
+	case ddl.AlterAddColumn:
 		return AlterAddColumn(stmt)
-	case model.AlterDropColumn:
+	case ddl.AlterDropColumn:
 		return AlterDropColumn(stmt)
-	case model.AlterAddIndex:
+	case ddl.AlterAddIndex:
 		return AlterAddIndex(stmt)
-	case model.AlterDropIndex:
+	case ddl.AlterDropIndex:
 		return AlterDropIndex(stmt)
 	default:
 		return "not implemented"
 	}
 }
 
-func AlterAddColumn(add model.AlterAddColumn) string {
+func AlterAddColumn(add ddl.AlterAddColumn) string {
 	result := fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN %s", add.Table, Column(add.Column))
 	if add.First {
 		result += " FIRST"
@@ -203,11 +203,11 @@ func AlterAddColumn(add model.AlterAddColumn) string {
 	return result + ";"
 }
 
-func AlterDropColumn(drop model.AlterDropColumn) string {
+func AlterDropColumn(drop ddl.AlterDropColumn) string {
 	return fmt.Sprintf("ALTER TABLE `%s` DROP COLUMN `%s`;", drop.Table, drop.Column)
 }
 
-func AlterAddIndex(index model.AlterAddIndex) string {
+func AlterAddIndex(index ddl.AlterAddIndex) string {
 	pre := "CREATE INDEX"
 	if index.Unique {
 		pre = "CREATE UNIQUE INDEX"
@@ -216,7 +216,7 @@ func AlterAddIndex(index model.AlterAddIndex) string {
 	return fmt.Sprintf("%s `%s` ON `%s`(`%s`);", pre, index.Name, index.Table, index.Column)
 }
 
-func AlterDropIndex(drop model.AlterDropIndex) string {
+func AlterDropIndex(drop ddl.AlterDropIndex) string {
 	return fmt.Sprintf("ALTER TABLE `%s` DROP INDEX `%s`;", drop.Table, drop.Index)
 }
 

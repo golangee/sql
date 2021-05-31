@@ -12,24 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser_test
+package mysql_test
 
 import (
 	"fmt"
+	"github.com/golangee/sql/ddl"
+	"github.com/golangee/sql/dialect/mysql"
+	"github.com/golangee/sql/internal"
 	"io/ioutil"
-	"sql/dialect/mysql/parser"
-	"sql/internal"
-	"sql/model"
 	"testing"
 )
 
+func loadSql(fname string) string {
+	sqlBytes, err := ioutil.ReadFile("testdata/" + fname)
+	if err != nil {
+		panic(err)
+	}
+	return string(sqlBytes)
+}
+
 func TestParseMusic(t *testing.T) {
-	sqlBytes, _ := ioutil.ReadFile("../testdata/music.sql")
-	sql := string(sqlBytes)
+	sql := loadSql("music.sql")
 
 	expectedTables := expectedMusicTables()
 
-	actualResult, err := parser.Parse(sql)
+	actualResult, err := mysql.Parse(sql)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,12 +55,11 @@ func TestParseMusic(t *testing.T) {
 }
 
 func TestParseAlter(t *testing.T) {
-	sqlBytes, _ := ioutil.ReadFile("../testdata/alter-user.sql")
-	sql := string(sqlBytes)
+	sql := loadSql("alter-user.sql")
 
 	expectedAlters := expectedUserAlterStatements()
 
-	actualResult, err := parser.Parse(sql)
+	actualResult, err := mysql.Parse(sql)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,49 +78,49 @@ func TestParseAlter(t *testing.T) {
 }
 
 // Returns a list of ALTER TABLE statements, that should be present in testdata/alter-user.sql.
-func expectedUserAlterStatements() []model.AlterStatement {
-	return []model.AlterStatement{
-		model.AlterAddColumn{
+func expectedUserAlterStatements() []ddl.AlterStatement {
+	return []ddl.AlterStatement{
+		ddl.AlterAddColumn{
 			Table:  "User",
-			Column: model.Column{Name: "BirthDate", Type: "DATE"},
+			Column: ddl.Column{Name: "BirthDate", Type: "DATE"},
 		},
-		model.AlterAddColumn{
+		ddl.AlterAddColumn{
 			Table:  "User",
-			Column: model.Column{Name: "Comment", Type: "TEXT"},
+			Column: ddl.Column{Name: "Comment", Type: "TEXT"},
 		},
-		model.AlterAddColumn{
+		ddl.AlterAddColumn{
 			Table:  "User",
-			Column: model.Column{Name: "BirthYear", Type: "INT"},
+			Column: ddl.Column{Name: "BirthYear", Type: "INT"},
 		},
-		model.AlterAddColumn{
+		ddl.AlterAddColumn{
 			Table:  "User",
-			Column: model.Column{Name: "Id", Type: "INT", NotNull: true, Default: s("123")},
+			Column: ddl.Column{Name: "Id", Type: "INT", NotNull: true, Default: s("123")},
 			First:  true,
 		},
-		model.AlterAddColumn{
+		ddl.AlterAddColumn{
 			Table:  "User",
-			Column: model.Column{Name: "Id", Type: "INT", NotNull: true, Default: s("123")},
+			Column: ddl.Column{Name: "Id", Type: "INT", NotNull: true, Default: s("123")},
 			After:  s("BirthDate"),
 		},
-		model.AlterDropColumn{
+		ddl.AlterDropColumn{
 			Table:  "User",
 			Column: "BirthDate",
 		},
-		model.AlterDropColumn{
+		ddl.AlterDropColumn{
 			Table:  "User",
 			Column: "Id",
 		},
-		model.AlterAddIndex{
+		ddl.AlterAddIndex{
 			Table:  "User",
 			Name:   "IndexId",
 			Column: "Id",
 			Unique: true,
 		},
-		model.AlterDropIndex{
+		ddl.AlterDropIndex{
 			Table: "User",
 			Index: "IndexId",
 		},
-		model.AlterDropIndex{
+		ddl.AlterDropIndex{
 			Table: "User",
 			Index: "IndexId2",
 		},
@@ -122,12 +128,12 @@ func expectedUserAlterStatements() []model.AlterStatement {
 }
 
 // expectedMusicTables returns the expected model from the testdata/music.sql example.
-func expectedMusicTables() []model.Table {
-	return []model.Table{
+func expectedMusicTables() []ddl.Table {
+	return []ddl.Table{
 		{
 			Name:        "Artist",
 			IfNotExists: true,
-			Columns: []model.Column{
+			Columns: []ddl.Column{
 				{Name: "Id", Type: "INT", PrimaryKey: true},
 				{Name: "Name", Type: "VARCHAR(255)", NotNull: true, Unique: true},
 				{Name: "BirthYear", Type: "INT", NotNull: true},
@@ -135,29 +141,29 @@ func expectedMusicTables() []model.Table {
 		},
 		{
 			Name: "Song",
-			Columns: []model.Column{
+			Columns: []ddl.Column{
 				{Name: "Id", Type: "INT", PrimaryKey: true},
 				{Name: "Name", Type: "VARCHAR(255)", NotNull: true},
 				{Name: "Album", Type: "INT"},
 			},
-			ForeignKeys: []model.ForeignKeyConstraint{
+			ForeignKeys: []ddl.ForeignKeyConstraint{
 				{Column: "Album", ReferenceTable: "Album", ReferenceColumn: "Id"},
 			},
 		},
 		{
 			Name: "WorkedOn",
-			Columns: []model.Column{
+			Columns: []ddl.Column{
 				{Name: "Artist", Type: "INT", NotNull: true},
 				{Name: "Song", Type: "INT", NotNull: true},
 			},
-			ForeignKeys: []model.ForeignKeyConstraint{
+			ForeignKeys: []ddl.ForeignKeyConstraint{
 				{Name: s("Wrote"), Column: "Artist", ReferenceTable: "Artist", ReferenceColumn: "Id"},
 				{Name: s("WrittenBy"), Column: "Song", ReferenceTable: "Song", ReferenceColumn: "Id"},
 			},
 		},
 		{
 			Name: "Album",
-			Columns: []model.Column{
+			Columns: []ddl.Column{
 				{Name: "Id", Type: "INT", PrimaryKey: true},
 				{Name: "Name", Type: "VARCHAR(255)"},
 				{Name: "Year", Type: "INT", Default: s("2000")},
@@ -165,12 +171,12 @@ func expectedMusicTables() []model.Table {
 		},
 		{
 			Name: "Publisher",
-			Columns: []model.Column{
+			Columns: []ddl.Column{
 				{Name: "Id", Type: "INT", PrimaryKey: true},
 				{Name: "Uuid", Type: "INT"},
 				{Name: "Year", Type: "INT"},
 			},
-			Keys: []model.Key{
+			Keys: []ddl.Key{
 				{Name: s("k_uuid"), OnColumn: "Uuid"},
 				{OnColumn: "Year"},
 			},

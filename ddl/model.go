@@ -12,11 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package ddl
 
 import (
 	"fmt"
 )
+
+// ParseResult contains all information that could be parsed from the SQL.
+type ParseResult struct {
+	// Tables are all parsed CREATE TABLE statements.
+	Tables []Table
+	// AlterStatements are all parsed ALTER TABLE statements.
+	AlterStatements []AlterStatement
+}
 
 // Table represents a CREATE definition for a single SQL table.
 type Table struct {
